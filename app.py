@@ -28,7 +28,28 @@ def quiz():
 def quiz_history():
   return render_template('quiz history.html')
 
+@app.route("/lessons/blood-vessels")
+def lessons_blood_vessels():
+  return render_template('bloodvessels.html')
+
+@app.route("/lessons/heart-walls")
+def lessons_walls():
+  return render_template('walls.html')
+
+@app.route("/lessons/heart-chambers")
+def lessons_chambers():
+  return render_template('chambers.html')
+
+@app.route("/lessons/heart-valves")
+def lessons_valves():
+  return render_template('valves.html')
+
+@app.route("/lessons/electrical-conduction-system")
+def lessons_ecs():
+  return render_template('ecs.html')
+
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
+
 
 
