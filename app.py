@@ -5,8 +5,24 @@ app = Flask(__name__)
 
 @app.route("/")
 def mainmenu(): 
+  return render_template('home.html')
+
+@app.route("/account")
+def account():
+  return render_template('account.html')
+
+@app.route("/login")
+def login():
   accounts = load_from_accounts_db()
-  return render_template('home.html', accounts=accounts)
+  return render_template('login.html', accounts=accounts)
+
+@app.route("/lessons")
+def lessons():
+  return render_template('lessons.html')
+
+@app.route("/quiz")
+def quiz():
+  return render_template('quiz.html')
 
 
 if __name__ == "__main__":
