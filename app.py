@@ -24,6 +24,9 @@ def lessons():
 def quiz():
   return render_template('quiz.html')
 
+@app.route("/quiz-history")
+def quiz_history():
+  return render_template('quiz history.html')
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
