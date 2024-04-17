@@ -1,5 +1,6 @@
 from flask import Flask, render_template
-from accountsdb import load_from_accounts_db
+from accountsdb import engine
+from sqlalchemy import text
 
 
 app = Flask(__name__)
@@ -14,8 +15,7 @@ def account():
 
 @app.route("/login")
 def login():
-  accounts = load_from_accounts_db()
-  return render_template('login.html', accounts=accounts)
+  return render_template('login.html')
 
 @app.route("/lessons")
 def lessons():
@@ -35,7 +35,7 @@ def lessons_blood_vessels():
 
 @app.route("/lessons/heart-walls")
 def lessons_walls():
-  return render_template('walls.html')
+  return render_template('walls.html', quiz=quiz)
 
 @app.route("/lessons/heart-chambers")
 def lessons_chambers():
@@ -49,8 +49,19 @@ def lessons_valves():
 def lessons_ecs():
   return render_template('ecs.html')
 
+def load_from_quiz_db():
+  with engine.connect() as conn:
+    quiz_table = conn.execute(text("select * from quiz"))
+    quiz = []
+    for row in quiz_table.all():
+      quiz.append(row._asdict())
+    return quiz
 
-
+@app.route("/quiz/heart-walls")
+def quiz_walls():
+  quiz = load_from_quiz_db()
+  return render_template('wallsquiz.html', quiz=quiz)
+  
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
