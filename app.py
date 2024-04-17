@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 from accountsdb import load_from_accounts_db
 
+
 app = Flask(__name__)
 
 @app.route("/")
@@ -47,6 +48,9 @@ def lessons_valves():
 @app.route("/lessons/electrical-conduction-system")
 def lessons_ecs():
   return render_template('ecs.html')
+
+
+
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
