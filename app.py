@@ -35,7 +35,7 @@ def lessons_blood_vessels():
 
 @app.route("/lessons/heart-walls")
 def lessons_walls():
-  return render_template('walls.html', quiz=quiz)
+  return render_template('walls.html')
 
 @app.route("/lessons/heart-chambers")
 def lessons_chambers():
@@ -57,11 +57,27 @@ def load_from_quiz_db():
       quiz.append(row._asdict())
     return quiz
 
+def load_from_question_db():
+  with engine.connect() as conn:
+    question_table = conn.execute(text("select * from question"))
+    question = []
+    for row in question_table.all():
+      numb = -1
+      question.append(row._asdict())
+      numb += 1
+      return question[numb]
+      
 @app.route("/quiz/heart-walls")
 def quiz_walls():
   quiz = load_from_quiz_db()
   return render_template('wallsquiz.html', quiz=quiz)
-  
+
+@app.route("/quiz/heart-walls/1")
+def quiz_walls_1():
+   question = load_from_question_db()
+   quiz = load_from_quiz_db()
+   return render_template('wallsq1.html', question=question ,quiz=quiz)
+
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
