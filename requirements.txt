@@ -4,4 +4,4 @@ sqlalchemy
 pymysql
 flask_mysqldb
 mysqlclient==1.4.6
-
+flask_sqlalchemy
