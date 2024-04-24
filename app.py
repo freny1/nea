@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
 from accountsdb import engine
 from sqlalchemy import text
 from flask_sqlalchemy import SQLAlchemy
@@ -27,7 +27,7 @@ class taken_quiz(db.Model):
   quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign key
 
 class question(db.Model):
-  id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
+  question_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   qnumber = db.Column(db.Integer, nullable=False)
   question = db.Column(db.String(250), nullable=False)
   difficulty_level = db.Column(db.Integer, nullable=False)
@@ -37,13 +37,13 @@ class question(db.Model):
 class quiz_question(db.Model):
   qq_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   position = db.Column(db.Integer)
-  question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False) #foreign key
+  question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'), nullable=False) #foreign key
   quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign key
 
 class answer(db.Model):
-  id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
+  answer_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   answer = db.Column(db.String(250), nullable=False)
-  question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False) #foreign key
+  question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'), nullable=False) #foreign key
   correct = db.Column(db.Boolean, default=False, nullable=False)
 
 
@@ -100,8 +100,43 @@ def quiz_walls():
     first_quiz_name = 'No quizzes available'
   return render_template('wallsquiz.html', quiz_title = first_quiz_name)
 
+
+@app.route("/quiz/<int:quiz_id>/<int:question_number>", methods=['GET', 'POST'])
+def quiz_question(quiz_id, question_number):
+    current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
+    answers = answer.query.filter_by(question_id=current_question.question_id).all()
+
+    quiz_obj = quiz.query.get(quiz_id)
+  
+    if request.method == 'POST':
+        selected_answer_id = int(request.form['answer'])
+        selected_answer = answer.query.get(selected_answer_id)
+
+        if selected_answer.correct:
+            taken_quiz_record = taken_quiz.query.filter_by(user_id=current_user_id, quiz_id=quiz_id).first()
+            if taken_quiz_record:
+                taken_quiz_record.score += 1
+            else:
+                taken_quiz_record = taken_quiz(user_id=current_user_id, quiz_id=quiz_id, score=1)
+                db.session.add(taken_quiz_record)
+            db.session.commit()
+
+        next_question_number = question_number + 1
+        next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+        if next_question:
+            return redirect(url_for('quiz_question', quiz_id=quiz_id, question_number=next_question_number))
+        else:
+            return redirect(url_for('quiz_summary'))
+
+    return render_template('wallsq1.html', question=current_question, answers=answers, quiz=quiz_obj)
+
+
+@app.route("/quiz/<int:quiz_id>/summary")
+def quiz_summary(quiz_id):
+    taken_quiz_record = taken_quiz.query.filter_by(user_id=current_user_id, quiz_id=quiz_id).first()
+    score = taken_quiz_record.score if taken_quiz_record else 0
+
+
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
-
-
 
