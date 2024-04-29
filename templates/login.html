@@ -7,24 +7,25 @@
     <title>Sign in</title>
     <h1>Sign in</h1>
     <h3>Please sign in to your account to continue</h3>
-
-
-    <div class='form'>
-      <form action="Sign in.php" method='post'>
-        <label for="username">Username:</label>
-        <input type="text" id="uname" name="uname" placeholder="username...">
-        <label for="password">Password:</label>
-        <input type="text" id="pword" name="pword" placeholder="password...">
-      </form>
-      <p><a href="">Forgot password?</a></p>
-        <div style="text-align:center;" , class='form'>
-          <form action="/action_page.php">
-            <input class="signin" type="submit" value="Sign in">
-          </form>
-        </div>
-      </form>
-    </div>
+    {% if error_message %}
+    <p style="color: red; text-align: center; font-family: 'balsamiq sans';">{{ error_message }}</p>
+    {% endif %}
   </head>
+  <body>
+    <div class='container'>
+      <div class='form'>
+        <form action="/login" method="POST">
+          <label for="username">Username:</label>
+          <input type="text" id="username" name="username" placeholder="username...">
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password" placeholder="password...">
+          <div style="text-align:center;">
+            <input class="signin" type="submit" value="Sign in">
+          </div>
+        </form>
+        <p><a href="">Forgot password?</a></p>
+      </div>
+    </div>
 
     <p>New? <a href="">Join now</a></p>
     <style>
@@ -62,7 +63,7 @@
         height: 45px;
         margin: 10px auto;
       }
-      input[type=text], select {
+      input[type=text], input[type=password] {
         width: 100%;
         font-family: 'Balsamiq Sans';
         padding: 12px 20px;
@@ -78,6 +79,12 @@
         font-weight: 50;
         text-align: left;
       }
+      .container {
+        width: 400px;
+        margin: auto;
+      }
+
     </style>
+  </body>
 </html>
       

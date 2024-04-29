@@ -1,18 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from accountsdb import engine
-from sqlalchemy import text
+from sqlalchemy import text, func
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import sessionmaker, relationship, aliased
+from collections import defaultdict
 
 app = Flask(__name__)
+app.secret_key = 'key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://sql8697943:2HSgWDVuLg@sql8.freemysqlhosting.net/sql8697943'
 db = SQLAlchemy(app)
 
 class accounts(db.Model):
-  id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
+  user_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   username = db.Column(db.String(25), unique=True, nullable=False)
   pasword = db.Column(db.String(25), nullable=False)
   email = db.Column(db.String(40), unique=True, nullable=False)
-
 
 class quiz(db.Model):
   quiz_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
@@ -23,7 +25,7 @@ class taken_quiz(db.Model):
   taken_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   score = db.Column(db.Integer, nullable=False)
   currentq_id = db.Column(db.Integer)
-  user_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=False) #foreign key
+  user_id = db.Column(db.Integer, db.ForeignKey('accounts.user_id'), nullable=False) #foreign key
   quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign key
 
 class question(db.Model):
@@ -38,14 +40,14 @@ class quiz_question(db.Model):
   qq_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   position = db.Column(db.Integer)
   question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'), nullable=False) #foreign key
-  quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign key
+  quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign 
+  question = db.relationship('question', backref='quiz_questions')
 
 class answer(db.Model):
   answer_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   answer = db.Column(db.String(250), nullable=False)
   question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'), nullable=False) #foreign key
   correct = db.Column(db.Boolean, default=False, nullable=False)
-
 
 @app.route("/")
 def mainmenu_route(): 
@@ -55,8 +57,18 @@ def mainmenu_route():
 def account_route():
   return render_template('account.html')
 
-@app.route("/login")
+@app.route("/login", methods=['GET', 'POST'])
 def login_route():
+  if request.method == 'POST':
+    username = request.form['username']
+    password = request.form['password']
+    user = accounts.query.filter_by(username=username, pasword=password).first()
+    if user:
+      session['user_id'] = user.user_id
+      return redirect(url_for('mainmenu_route'))
+    else:
+      error_message = 'Invalid username or password. Please try again, or create an account to continue.'
+      return render_template('login.html', error_message=error_message)
   return render_template('login.html')
 
 @app.route("/lessons")
@@ -65,11 +77,18 @@ def lessons_route():
 
 @app.route("/quiz")
 def quiz_route():
+  session['quiz_score'] = 0
   return render_template('quiz.html')
 
 @app.route("/quiz-history")
 def quiz_history():
-  return render_template('quiz history.html')
+  if 'user_id' in session:
+    user_id = session['user_id']
+    user_quizzes = taken_quiz.query.filter_by(user_id=user_id).all()
+    quizzes = {quiz.quiz_id: quiz for quiz in quiz.query.all()}
+    return render_template('quiz history.html', user_quizzes=user_quizzes, quizzes=quizzes)
+  else:
+    return redirect(url_for('login_route'))
 
 @app.route("/lessons/blood-vessels")
 def lessons_blood_vessels():
@@ -100,43 +119,65 @@ def quiz_walls():
     first_quiz_name = 'No quizzes available'
   return render_template('wallsquiz.html', quiz_title = first_quiz_name)
 
-
 @app.route("/quiz/<int:quiz_id>/<int:question_number>", methods=['GET', 'POST'])
-def quiz_question(quiz_id, question_number):
-    current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
-    answers = answer.query.filter_by(question_id=current_question.question_id).all()
+def quiz_questions(quiz_id, question_number):
+  current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
 
-    quiz_obj = quiz.query.get(quiz_id)
+  if 'answered_questions' not in session:
+    session['answered_questions'] = []
+
+  if current_question.question_id in session['answered_questions']:
+    next_question_number = question_number + 1
+    next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+    if next_question:
+      return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question.qnumber))
+    else:
+      return redirect(url_for('quiz_summary', quiz_id=quiz_id))
   
-    if request.method == 'POST':
-        selected_answer_id = int(request.form['answer'])
-        selected_answer = answer.query.get(selected_answer_id)
+  answers = answer.query.filter_by(question_id=current_question.question_id).all()
+  quiz_obj = quiz.query.get(quiz_id)
 
-        if selected_answer.correct:
-            taken_quiz_record = taken_quiz.query.filter_by(user_id=current_user_id, quiz_id=quiz_id).first()
-            if taken_quiz_record:
-                taken_quiz_record.score += 1
-            else:
-                taken_quiz_record = taken_quiz(user_id=current_user_id, quiz_id=quiz_id, score=1)
-                db.session.add(taken_quiz_record)
-            db.session.commit()
+  if request.method == 'POST':
+    selected_answer_id = int(request.form['answer'])
+    selected_answer = answer.query.get(selected_answer_id)
 
-        next_question_number = question_number + 1
-        next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
-        if next_question:
-            return redirect(url_for('quiz_question', quiz_id=quiz_id, question_number=next_question_number))
+    if selected_answer and selected_answer.correct:
+      if 'user_id' in session: 
+        user_id = session['user_id']
+        taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
+        if taken_quiz_record:
+          taken_quiz_record.score +=1
         else:
-            return redirect(url_for('quiz_summary'))
+          taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=1)
+          db.session.add(taken_quiz_record)
+        db.session.commit()
 
-    return render_template('wallsq1.html', question=current_question, answers=answers, quiz=quiz_obj)
+      session['answered_questions'].append(current_question.question_id)
+      next_question_number = question_number + 1
+      next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+      if next_question:
+        return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question_number))
+      else:
+        return redirect(url_for('quiz_summary', quiz_id=quiz_id))
+
+    return render_template('wallsq1.html', current_question=current_question, answers=answers, quiz=quiz_obj)
+       
 
 
 @app.route("/quiz/<int:quiz_id>/summary")
 def quiz_summary(quiz_id):
-    taken_quiz_record = taken_quiz.query.filter_by(user_id=current_user_id, quiz_id=quiz_id).first()
+  if 'user_id' in session:
+    user_id = session['user_id']
+    taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
     score = taken_quiz_record.score if taken_quiz_record else 0
+
+    quiz_obj = quiz.query.get(quiz_id)
+    questions = quiz_obj.questions 
+    
+    return render_template('quiz summary.html', score=score, quiz=quiz_obj)
+  else:
+    return render_template('login.html')
 
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
-

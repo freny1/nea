@@ -3,21 +3,31 @@
   <link href='https://fonts.googleapis.com/css?family=Balsamiq Sans' rel='stylesheet'>
   <link rel="shortcut icon" href="{{ url_for('static', filename ='favicon.png') }}">
   <a class="back" href="/quiz"><button class="quizzes">&laquo; Quizzes</button></a>
-  <title>Heart Walls Quiz</title>
-  <div class='quiz_name'>
-    <h1>{{ quiz_title }}</h1>
-  </div>
-<div style="text-align:center;">
-  <a href="{{ url_for('quiz_questions', quiz_id=1, question_number=1) }}" ><button class='option'>Start</button></a>
+  <title>Quiz Summary</title>
 
-</div>
-
+    <h1>{{ quiz.quiz_name }}</h1>
+    <h2>Score: {{ score }} /4</h2>
+  
 <style>
-  .quiz_name, h1 {
+  h1 {
     text-align: center;
     font-size: 60px;
     font-family: 'Balsamiq Sans';
     font-weight: 100;
+  }
+
+  h2 {
+    text-align: center;
+    font-size: 40px;
+    font-family: 'Balsamiq Sans';
+    font-weight: 100;
+  }
+
+  h3 {
+    text-align: center;
+    font-size: 30px;
+    font-family: 'Balsamiq Sans';
+    font-weight: 50;
   }
   .quizzes {
     text-align:center;
@@ -28,13 +38,7 @@
     margin: 10px auto;
   }
 
-  .option {
-    text-align:center;
-    font-size: 30px;
-    font-family: 'Balsamiq Sans';
-    width: 200px;
-    height: 50px;
-    margin: 200px auto;
-  }
+
 </style>
 
+</html>
