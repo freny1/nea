@@ -152,47 +152,43 @@ def quiz_chambers():
 
 @app.route("/quiz/<int:quiz_id>/<int:question_number>", methods=['GET', 'POST'])
 def quiz_questions(quiz_id, question_number):
-      current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
-      if 'answered_questions' not in session:
-          session['answered_questions'] = []
+    current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
+    if 'answered_questions' not in session:
+        session['answered_questions'] = []
 
-      if current_question.question_id in session['answered_questions']:
-          next_question_number = question_number + 1
-          next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
-          if next_question:
-              return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question.qnumber))
-          else:
-              return redirect(url_for('quiz_summary', quiz_id=quiz_id))
+    if current_question.question_id in session['answered_questions']:
+        return redirect(url_for('quiz_summary', quiz_id=quiz_id))
 
-      answers = answer.query.filter_by(question_id=current_question.question_id).all()
-      quiz_obj = quiz.query.get(quiz_id)
+    answers = answer.query.filter_by(question_id=current_question.question_id).all()
+    quiz_obj = quiz.query.get(quiz_id)
 
-      if request.method == 'POST':
-          selected_answer_id = int(request.form['answer'])
-          selected_answer = answer.query.get(selected_answer_id)
+    if request.method == 'POST':
+        selected_answer_id = int(request.form['answer'])
+        selected_answer = answer.query.get(selected_answer_id)
 
-          if selected_answer and selected_answer.correct:
-              if 'user_id' in session:
-                  user_id = session['user_id']
-                  if current_question.question_id not in session.get('answered_correctly', []):
+        if selected_answer and selected_answer.correct:
+            if 'user_id' in session:
+                user_id = session['user_id']
+                if current_question.question_id not in session.get('answered_correctly', []):
                     taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
                     if taken_quiz_record:
-                      taken_quiz_record.score += 1
+                        taken_quiz_record.score += 1
                     else:
-                      taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=1)
-                      db.session.add(taken_quiz_record)
-                  db.session.commit()
-                  session.setdefault('answered_correctly', []).append(current_question.question_id)
-              session['answered_questions'].append(current_question.question_id)
+                        taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=1)
+                        db.session.add(taken_quiz_record)
+                    db.session.commit()
+                    session.setdefault('answered_correctly', []).append(current_question.question_id)
+            session['answered_questions'].append(current_question.question_id)
 
-          next_question_number = question_number + 1
-          next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
-          if next_question:
-              return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question_number))
-          else:
-              return redirect(url_for('quiz_summary', quiz_id=quiz_id))
+        next_question_number = question_number + 1
+        next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+        if next_question:
+            return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question_number))
+        else:
+            return redirect(url_for('quiz_summary', quiz_id=quiz_id))
 
-      return render_template('wallsq1.html', current_question=current_question, answers=answers, quiz=quiz_obj)
+    return render_template('chambersq.html', current_question=current_question, answers=answers, quiz=quiz_obj)
+
 
 
 
@@ -205,11 +201,13 @@ def quiz_summary(quiz_id):
 
     quiz_obj = quiz.query.get(quiz_id)
     questions = quiz_obj.questions 
+    num_questions = len(quiz_obj.questions)
 
-    return render_template('quiz summary.html', score=score, quiz=quiz_obj, questions=questions)
+    return render_template('quiz summary.html', score=score, quiz=quiz_obj, questions=questions, num_questions=num_questions)
   else:
     return render_template('login.html')
 
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', debug=True)
+

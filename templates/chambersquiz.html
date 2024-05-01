@@ -5,10 +5,10 @@
   <a class="back" href="/quiz"><button class="quizzes">&laquo; Quizzes</button></a>
   <title>Heart Chambers Quiz</title>
   <div class='quiz_name'>
-    <h1>{{ quiz_title }}</h1>
+    <h1>Heart Chambers</h1>
   </div>
 <div style="text-align:center;">
-  <a href="{{ url_for('quiz_chambersv2', quiz_id=2, question_number=1) }}" ><button class='option'>Start</button></a>
+  <a href="{{ url_for('quiz_questions', quiz_id=2, question_number=1) }}" method="post"><button class='option'>Start</button></a>
 
 </div>
 
