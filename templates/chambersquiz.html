@@ -3,12 +3,12 @@
   <link href='https://fonts.googleapis.com/css?family=Balsamiq Sans' rel='stylesheet'>
   <link rel="shortcut icon" href="{{ url_for('static', filename ='favicon.png') }}">
   <a class="back" href="/quiz"><button class="quizzes">&laquo; Quizzes</button></a>
-  <title>Heart Walls Quiz</title>
+  <title>Heart Chambers Quiz</title>
   <div class='quiz_name'>
     <h1>{{ quiz_title }}</h1>
   </div>
 <div style="text-align:center;">
-  <a href="{{ url_for('quiz_questions', quiz_id=1, question_number=1) }}" method="post"><button class='option'>Start</button></a>
+  <a href="{{ url_for('quiz_chambersv2', quiz_id=2, question_number=1) }}" ><button class='option'>Start</button></a>
 
 </div>
 
@@ -37,4 +37,4 @@
     margin: 200px auto;
   }
 </style>
-
+</html>

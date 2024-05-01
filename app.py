@@ -35,7 +35,7 @@ class question(db.Model):
   difficulty_level = db.Column(db.Integer, nullable=False)
   quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.quiz_id'), nullable=False) #foreign key
   answers = db.relationship('answer', backref='question')
-  
+
 class quiz_question(db.Model):
   qq_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
   position = db.Column(db.Integer)
@@ -78,17 +78,36 @@ def lessons_route():
 @app.route("/quiz")
 def quiz_route():
   session['quiz_score'] = 0
+  session.pop('answered_questions', None)
+  session.pop('answered_correctly', None)
+  if 'user_id' in session:
+    user_id = session['user_id']
+    first_quiz = quiz.query.first()
+    if first_quiz:
+      quiz_id = first_quiz.quiz_id
+      taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
+      if taken_quiz_record:
+        taken_quiz_record.score = 0
+        db.session.commit()
+      else:
+        taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=0)
+        db.session.add(taken_quiz_record)
+      db.session.commit()
   return render_template('quiz.html')
+
 
 @app.route("/quiz-history")
 def quiz_history():
-  if 'user_id' in session:
-    user_id = session['user_id']
-    user_quizzes = taken_quiz.query.filter_by(user_id=user_id).all()
-    quizzes = {quiz.quiz_id: quiz for quiz in quiz.query.all()}
-    return render_template('quiz history.html', user_quizzes=user_quizzes, quizzes=quizzes)
-  else:
-    return redirect(url_for('login_route'))
+    if 'user_id' in session:
+        user_id = session['user_id']
+        subquery = db.session.query(taken_quiz.quiz_id, func.max(taken_quiz.taken_id).label('max_taken_id')).group_by(taken_quiz.quiz_id).subquery()
+        user_quizzes = db.session.query(taken_quiz).join(subquery, taken_quiz.taken_id == subquery.c.max_taken_id).filter(taken_quiz.user_id == user_id).all()
+
+        quizzes = {quiz.quiz_id: quiz for quiz in quiz.query.all()}
+        return render_template('quiz history.html', user_quizzes=user_quizzes, quizzes=quizzes)
+    else:
+        return redirect(url_for('login_route'))
+
 
 @app.route("/lessons/blood-vessels")
 def lessons_blood_vessels():
@@ -119,49 +138,62 @@ def quiz_walls():
     first_quiz_name = 'No quizzes available'
   return render_template('wallsquiz.html', quiz_title = first_quiz_name)
 
+
+@app.route("/quiz/heart-chambers")
+def quiz_chambers():
+  first_quiz = quiz.query.first()
+  if first_quiz:
+    first_quiz_name = first_quiz.quiz_name
+  else:
+    first_quiz_name = 'No quizzes available'
+  return render_template('chambersquiz.html', quiz_title = first_quiz_name)
+
+
+
 @app.route("/quiz/<int:quiz_id>/<int:question_number>", methods=['GET', 'POST'])
 def quiz_questions(quiz_id, question_number):
-  current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
+      current_question = question.query.filter_by(quiz_id=quiz_id, qnumber=question_number).first_or_404()
+      if 'answered_questions' not in session:
+          session['answered_questions'] = []
 
-  if 'answered_questions' not in session:
-    session['answered_questions'] = []
+      if current_question.question_id in session['answered_questions']:
+          next_question_number = question_number + 1
+          next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+          if next_question:
+              return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question.qnumber))
+          else:
+              return redirect(url_for('quiz_summary', quiz_id=quiz_id))
 
-  if current_question.question_id in session['answered_questions']:
-    next_question_number = question_number + 1
-    next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
-    if next_question:
-      return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question.qnumber))
-    else:
-      return redirect(url_for('quiz_summary', quiz_id=quiz_id))
-  
-  answers = answer.query.filter_by(question_id=current_question.question_id).all()
-  quiz_obj = quiz.query.get(quiz_id)
+      answers = answer.query.filter_by(question_id=current_question.question_id).all()
+      quiz_obj = quiz.query.get(quiz_id)
 
-  if request.method == 'POST':
-    selected_answer_id = int(request.form['answer'])
-    selected_answer = answer.query.get(selected_answer_id)
+      if request.method == 'POST':
+          selected_answer_id = int(request.form['answer'])
+          selected_answer = answer.query.get(selected_answer_id)
 
-    if selected_answer and selected_answer.correct:
-      if 'user_id' in session: 
-        user_id = session['user_id']
-        taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
-        if taken_quiz_record:
-          taken_quiz_record.score +=1
-        else:
-          taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=1)
-          db.session.add(taken_quiz_record)
-        db.session.commit()
+          if selected_answer and selected_answer.correct:
+              if 'user_id' in session:
+                  user_id = session['user_id']
+                  if current_question.question_id not in session.get('answered_correctly', []):
+                    taken_quiz_record = taken_quiz.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
+                    if taken_quiz_record:
+                      taken_quiz_record.score += 1
+                    else:
+                      taken_quiz_record = taken_quiz(user_id=user_id, quiz_id=quiz_id, score=1)
+                      db.session.add(taken_quiz_record)
+                  db.session.commit()
+                  session.setdefault('answered_correctly', []).append(current_question.question_id)
+              session['answered_questions'].append(current_question.question_id)
 
-      session['answered_questions'].append(current_question.question_id)
-      next_question_number = question_number + 1
-      next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
-      if next_question:
-        return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question_number))
-      else:
-        return redirect(url_for('quiz_summary', quiz_id=quiz_id))
+          next_question_number = question_number + 1
+          next_question = question.query.filter_by(quiz_id=quiz_id, qnumber=next_question_number).first()
+          if next_question:
+              return redirect(url_for('quiz_questions', quiz_id=quiz_id, question_number=next_question_number))
+          else:
+              return redirect(url_for('quiz_summary', quiz_id=quiz_id))
 
-    return render_template('wallsq1.html', current_question=current_question, answers=answers, quiz=quiz_obj)
-       
+      return render_template('wallsq1.html', current_question=current_question, answers=answers, quiz=quiz_obj)
+
 
 
 @app.route("/quiz/<int:quiz_id>/summary")
@@ -173,8 +205,8 @@ def quiz_summary(quiz_id):
 
     quiz_obj = quiz.query.get(quiz_id)
     questions = quiz_obj.questions 
-    
-    return render_template('quiz summary.html', score=score, quiz=quiz_obj)
+
+    return render_template('quiz summary.html', score=score, quiz=quiz_obj, questions=questions)
   else:
     return render_template('login.html')
 
